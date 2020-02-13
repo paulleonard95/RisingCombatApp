@@ -130,6 +130,7 @@ namespace RisingCombatApp.Controllers
                         if(Url.IsLocalUrl(ReturnUrl))
                         {
                             return Redirect(ReturnUrl);
+                            
                         }
                         else
                         {
@@ -170,19 +171,31 @@ namespace RisingCombatApp.Controllers
         }
 
         [NonAction]
-        public void SendVerificationLinkEmail(string emailID, string activationCode)
+        public void SendVerificationLinkEmail(string emailID, string activationCode, string emailFor = "VerifyAccount")
         {
-            var verifyUrl = "/User/VerifyAccount/" + activationCode;
+            var verifyUrl = "/User/"+emailFor+"/" + activationCode;
             var link = Request.Url.AbsoluteUri.Replace(Request.Url.PathAndQuery, verifyUrl);
 
             var fromEmail = new MailAddress("paulleonard95@gmail.com", "Raising Combat");
             var toEmail = new MailAddress(emailID);
             var fromEmailPassword = "derrycity9"; //Replace with actual password
-            string subject = "Your account is successfully created!";
+            string subject = "";
+            string body = "";
 
-            string body = "<br/><br/>We are excited to tell you that your Raising Combat account has " + 
-                " been set up and ready to use! Please click on the below link to verify your account" +
-                " <br/><br/><a href='" +link+ "'>" + link  +"</a> ";
+            if(emailFor == "VerifyAccount")
+            {
+                subject = "Your account is successfully created!";
+
+                body = "<br/><br/>We are excited to tell you that your Raising Combat account has " +
+                    " been set up and ready to use! Please click on the below link to verify your account" +
+                    " <br/><br/><a href='" + link + "'>" + link + "</a> ";
+            }
+            else if (emailFor == "ResetPassword")
+            {
+                subject = "Reset Password";
+                body = "Hi, <br/><br/>We got a request to reset your account password. Please click on the link below to reset your password" +
+                    "<br/><br/><a href=" +link+">Reset Password Link</a>";
+            }
 
             var smtp = new SmtpClient
             {
@@ -201,6 +214,99 @@ namespace RisingCombatApp.Controllers
                 IsBodyHtml = true
             })
                 smtp.Send(message);
+        }
+
+        //Forgot Password
+        public ActionResult ForgotPassword()
+        {
+            return View();
+        }
+
+        //Verify Forgot Password Email
+        [HttpPost]
+        public ActionResult ForgotPassword(string EmailID)
+        {
+            //Verify Emial ID
+            string message = "";
+            bool status = false;
+
+            using (RaisingCombatDBEntities dc = new RaisingCombatDBEntities())
+            {
+                var account = dc.Users.Where(a => a.EmailID == EmailID).FirstOrDefault();
+                if (account != null)
+                {
+                    // Send email for reset password and generate reset password link then send email
+                    string resetCode = Guid.NewGuid().ToString();
+                    SendVerificationLinkEmail(account.EmailID, resetCode, "ResetPassword");
+                    account.ResetPasswordCode = resetCode;
+                    //This line is to avoid confirm password not match issue - as confirm password property added in current model class
+                    dc.Configuration.ValidateOnSaveEnabled = false;
+                    //Update Database
+                    dc.SaveChanges();
+                    message = "Reset Password link has been sent to your email address";
+                }
+                else
+                {
+                    message = "Account does not exist. Please register!";
+                }
+            }
+            ViewBag.Message = message;
+            return View();
+        }
+
+        public ActionResult ResetPassword(string id)
+        {
+            //Verify the reset password link
+            //Find account assoiciated with this link
+            //redirect to reset password page
+            using(RaisingCombatDBEntities dc = new RaisingCombatDBEntities())
+            {
+                //Take reset password code from database
+                var user = dc.Users.Where(a => a.ResetPasswordCode == id).FirstOrDefault();
+                //If code found matches id then go into if statement
+                if(user != null)
+                {
+                    //Then goes into the view
+                    ResetPasswordModel model = new ResetPasswordModel();
+                    model.ResetCode = id;
+                    return View(model);
+                }
+                else
+                {
+                    return HttpNotFound();
+                }
+            }
+        }
+
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        public ActionResult ResetPassword(ResetPasswordModel model)
+        {
+            var message = "";
+            if(ModelState.IsValid)
+            {
+                using(RaisingCombatDBEntities dc = new RaisingCombatDBEntities())
+                {
+                    var user = dc.Users.Where(a => a.ResetPasswordCode == model.ResetCode).FirstOrDefault();
+                    if(user != null)
+                    {
+                        user.Password = Crypto.Hash(model.NewPassword);
+                        // reset password code is set to empty as can only be used once
+                        user.ResetPasswordCode = "";
+                        // to stop confirm password issue
+                        dc.Configuration.ValidateOnSaveEnabled = false;
+                        dc.SaveChanges();
+                        message = "New Password updated successfully";
+                    }
+                }
+            }
+            else
+            {
+                message = "Something is invalid";
+            }
+
+            ViewBag.Message = message;
+            return View(model);
         }
     }
 

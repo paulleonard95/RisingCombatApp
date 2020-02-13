@@ -26,5 +26,6 @@ namespace RisingCombatApp.Models
         }
     
         public virtual DbSet<User> Users { get; set; }
+        public virtual DbSet<Timetable> Timetables { get; set; }
     }
 }

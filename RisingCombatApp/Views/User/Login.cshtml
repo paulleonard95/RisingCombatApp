@@ -6,6 +6,10 @@
 
 <h2>Login</h2>
 
+<div class="text-danger">
+    @ViewBag.Message
+</div>
+
 
 @using (Html.BeginForm())
 {
@@ -50,6 +54,10 @@
 
 <div>
     @Html.ActionLink("Register Now", "Registration", "User")
+</div>
+
+<div>
+    @Html.ActionLink("Forgot Password?", "ForgotPassword", "User")
 </div>
 
 
