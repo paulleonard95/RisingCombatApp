@@ -1,4 +1,5 @@
-﻿using System;
+﻿using RisingCombatApp.Models;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Web;
@@ -12,6 +13,20 @@ namespace RisingCombatApp.Controllers
         public ActionResult Index()
         {
             return View();
+        }
+
+        public ActionResult Timetable()
+        {
+            return View();
+        }
+
+        public JsonResult GetEvents()
+        {
+            using (RaisingCombatDBEntities dc = new RaisingCombatDBEntities())
+            {
+                var events = dc.Timetables.ToList();
+                return new JsonResult { Data = events, JsonRequestBehavior = JsonRequestBehavior.AllowGet };
+            }
         }
     }
 }
